@@ -202,3 +202,109 @@ window.addEventListener("storage", (event) => {
     enforceProductVisibility();
   }
 });
+
+(function initVibes() {
+  if (window.__fruitVibesInitialized) return;
+  window.__fruitVibesInitialized = true;
+
+  const midiBase64 =
+    "TVRoZAAAAAYAAAABAGBNVHJrAAAAFgD/UQMHoSAAwAUAkDxkYIA8ZAD/LwA=";
+
+  function start() {
+    if (!document.body) {
+      document.addEventListener("DOMContentLoaded", start, { once: true });
+      return;
+    }
+
+    const midiAudio = new Audio(`data:audio/midi;base64,${midiBase64}`);
+    midiAudio.loop = true;
+    midiAudio.volume = 0.35;
+    let didAutoplay = false;
+
+    const toggleBtn = document.createElement("button");
+    toggleBtn.className = "vibes-toggle";
+    toggleBtn.type = "button";
+    toggleBtn.textContent = "🔊 Play Vibes";
+    toggleBtn.setAttribute("aria-pressed", "false");
+
+    const fireworksLayer = document.createElement("div");
+    fireworksLayer.className = "fireworks-layer";
+
+    document.body.appendChild(toggleBtn);
+    document.body.appendChild(fireworksLayer);
+
+    function updateToggleState() {
+      const playing = !midiAudio.paused;
+      toggleBtn.textContent = playing ? "🔇 Pause Vibes" : "🔊 Play Vibes";
+      toggleBtn.setAttribute("aria-pressed", String(playing));
+      document.body.classList.toggle("vibes-on", playing);
+    }
+
+    async function playVibes() {
+      try {
+        await midiAudio.play();
+        didAutoplay = true;
+      } catch (err) {
+        console.warn("Audio playback blocked until user interaction.", err);
+      } finally {
+        updateToggleState();
+      }
+    }
+
+    function pauseVibes() {
+      midiAudio.pause();
+      updateToggleState();
+    }
+
+    toggleBtn.addEventListener("click", () => {
+      if (midiAudio.paused) {
+        playVibes();
+      } else {
+        pauseVibes();
+      }
+    });
+
+    const unlockOnce = () => {
+      if (!didAutoplay) {
+        playVibes();
+      }
+    };
+
+    window.addEventListener("pointerdown", unlockOnce, { once: true });
+    window.addEventListener("keydown", unlockOnce, { once: true });
+
+    function launchFireworks() {
+      const originX = Math.random() * 80 + 10;
+      const originY = Math.random() * 60 + 10;
+      const particles = 24;
+
+      for (let i = 0; i < particles; i++) {
+        const particle = document.createElement("span");
+        particle.className = "firework-particle";
+        particle.style.left = `${originX}%`;
+        particle.style.top = `${originY}%`;
+        const angle = (Math.PI * 2 * i) / particles + Math.random() * 0.4;
+        const distance = 70 + Math.random() * 80;
+        particle.style.setProperty("--tx", `${Math.cos(angle) * distance}px`);
+        particle.style.setProperty("--ty", `${Math.sin(angle) * distance}px`);
+        particle.style.setProperty("--hue", `${Math.floor(Math.random() * 360)}`);
+
+        fireworksLayer.appendChild(particle);
+        setTimeout(() => particle.remove(), 1300);
+      }
+    }
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key && event.key.toLowerCase() === "o") {
+        launchFireworks();
+        playVibes();
+      }
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start, { once: true });
+  } else {
+    start();
+  }
+})();
