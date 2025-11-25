@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard - Fruit Shop</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header role="banner">
+      <div class="header-center">
+        <a href="index.html" class="logo" aria-label="Go to homepage">
+          <img
+            src="img/giraffe-logo.svg"
+            class="logo-img"
+            alt="Fruit Shop Logo"
+          />
+          <span class="products-text" style="text-align: center">
+            View Products
+          </span>
+        </a>
+        <nav role="navigation" aria-label="Main navigation">
+          <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="bundles.html">Bundles</a>
+            <a href="personality-quiz.html" class="quiz-link">🌟 Fruit Quiz</a>
+            <a href="admin.html" class="admin-link active">🔐 Admin</a>
+          </div>
+          <a
+            href="basket.html"
+            class="basket-link"
+            aria-label="View shopping basket"
+            style="position: relative"
+          >
+            <img
+              src="img/basket-icon.png"
+              class="basket-img"
+              alt="Shopping basket icon"
+            />
+            <span class="basket-text">View shopping basket</span>
+          </a>
+        </nav>
+      </div>
+    </header>
+    <main id="main-content" role="main" class="admin-main">
+      <section
+        id="adminLoginSection"
+        class="content-box admin-card"
+        aria-live="polite"
+      >
+        <h1>Admin Login</h1>
+        <p>Enter the admin passphrase to access restricted insights.</p>
+        <form id="adminLoginForm">
+          <label for="adminPass">Passphrase</label>
+          <input
+            type="password"
+            id="adminPass"
+            name="adminPass"
+            required
+            aria-required="true"
+          />
+          <button type="submit" class="cart-action-btn">Log In</button>
+        </form>
+        <p id="adminLoginError" class="admin-error" role="alert"></p>
+        <p class="admin-hint" aria-live="polite">
+          Hint: passphrase is <span class="admin-code">ADMIN</span>
+        </p>
+      </section>
+      <section
+        id="adminDashboardSection"
+        class="content-box admin-card"
+        style="display: none"
+        aria-live="polite"
+      >
+        <div class="admin-dashboard-header">
+          <div>
+            <p class="admin-eyebrow">Secure area</p>
+            <h1>Product Overview</h1>
+          </div>
+          <button id="adminLogoutBtn" class="secondary-btn">Logout</button>
+        </div>
+        <p>
+          Monitor all products from a single place. Access is restricted to
+          authenticated admins only.
+        </p>
+        <div class="admin-table-wrapper">
+          <table class="admin-table" aria-label="Products overview table">
+            <thead>
+              <tr>
+                <th scope="col">Emoji</th>
+                <th scope="col">Product</th>
+                <th scope="col">SKU</th>
+                <th scope="col">Tagline</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody id="adminProductsBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <script src="shop.js"></script>
+    <script src="admin.js"></script>
+  </body>
+</html>
+
