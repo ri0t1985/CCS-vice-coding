@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">
+  <defs>
+    <linearGradient id="giraffeBody" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f9d976"/>
+      <stop offset="100%" stop-color="#f39c12"/>
+    </linearGradient>
+    <linearGradient id="giraffeSpots" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8e5a0e"/>
+      <stop offset="100%" stop-color="#6d3d04"/>
+    </linearGradient>
+  </defs>
+  <rect width="240" height="240" rx="32" fill="#fef5e4"/>
+  <g transform="translate(60 30)">
+    <path d="M60 50 C30 40 10 20 6 0 L16 2 C22 18 35 30 55 32 Z" fill="#f5b041"/>
+    <path d="M60 50 C90 40 110 20 114 0 L104 2 C98 18 85 30 65 32 Z" fill="#f5b041"/>
+    <rect x="32" y="46" width="56" height="120" rx="28" fill="url(#giraffeBody)"/>
+    <rect x="48" y="150" width="24" height="46" rx="10" fill="#f39c12"/>
+    <circle cx="44" cy="132" r="10" fill="url(#giraffeSpots)"/>
+    <circle cx="88" cy="116" r="12" fill="url(#giraffeSpots)"/>
+    <circle cx="68" cy="92" r="14" fill="url(#giraffeSpots)"/>
+    <circle cx="72" cy="70" r="34" fill="url(#giraffeBody)"/>
+    <ellipse cx="72" cy="74" rx="32" ry="28" fill="#fde3a7"/>
+    <circle cx="60" cy="66" r="6" fill="#2d1604"/>
+    <circle cx="84" cy="66" r="6" fill="#2d1604"/>
+    <path d="M64 84 Q72 92 80 84" stroke="#2d1604" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <ellipse cx="54" cy="40" rx="8" ry="14" fill="#f39c12"/>
+    <ellipse cx="90" cy="40" rx="8" ry="14" fill="#f39c12"/>
+    <circle cx="54" cy="28" r="6" fill="#2d1604"/>
+    <circle cx="90" cy="28" r="6" fill="#2d1604"/>
+  </g>
+  <text x="50%" y="210" text-anchor="middle" font-family="'Baloo 2', Arial, sans-serif" font-size="26" fill="#a35d05">
+    Fruit Shop
+  </text>
+</svg>
+
