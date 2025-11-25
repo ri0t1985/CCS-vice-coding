@@ -16,6 +16,45 @@ body {
   margin: 0;
   color: #222;
 }
+
+/* Footer */
+.site-footer {
+  background: #111;
+  color: #f2f2f2;
+  margin-top: 3rem;
+}
+.site-footer .footer-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+.site-footer .footer-section h3 {
+  margin: 0 0 0.6rem 0;
+  font-size: 1.2rem;
+  color: #fff;
+}
+.site-footer .footer-section p {
+  margin: 0;
+  color: #ddd;
+  line-height: 1.5;
+  font-size: 1rem;
+}
+.site-footer .footer-bottom {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1rem 2rem;
+  text-align: center;
+  color: #bbb;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 768px) {
+  .site-footer .footer-content {
+    padding: 1.5rem;
+  }
+}
 header {
   background: #f9f6f1;
   padding: 1.2rem 2.5rem;
