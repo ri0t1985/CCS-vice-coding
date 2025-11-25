@@ -66,6 +66,8 @@
     <script src="shop.js"></script>
     <script src="fruit-facts.js"></script>
     <script>
+      redirectIfProductDisabled("apple");
+
       document.getElementById("addToBasket").onclick = function () {
         addToBasket("apple");
       };

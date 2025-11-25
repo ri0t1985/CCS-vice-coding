@@ -41,9 +41,15 @@
         </select>
         <br /><br />
         <label>Choose your fruits:</label><br />
-        <input type="checkbox" name="fruits" value="Apple" /> Apple 🍏<br />
-        <input type="checkbox" name="fruits" value="Banana" /> Banana 🍌<br />
-        <input type="checkbox" name="fruits" value="Lemon" /> Lemon 🍋<br />
+        <div data-product-id="apple">
+          <input type="checkbox" name="fruits" value="Apple" /> Apple 🍏<br />
+        </div>
+        <div data-product-id="banana">
+          <input type="checkbox" name="fruits" value="Banana" /> Banana 🍌<br />
+        </div>
+        <div data-product-id="lemon">
+          <input type="checkbox" name="fruits" value="Lemon" /> Lemon 🍋<br />
+        </div>
         <br />
         <label for="frequency">Delivery Frequency:</label>
         <select id="frequency" name="frequency" required>
