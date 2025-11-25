@@ -8,4 +8,4 @@ You'll get a lot of freedom in this project, but workflow should always be:
 - create a branch
 - build the code
 - commit and push 
-- create a pull request
+- create a pull request to the current project (not to the forked original repo)

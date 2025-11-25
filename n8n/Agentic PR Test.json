@@ -4,49 +4,43 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "={{ $json.chatInput }}",
-        "hasOutputParser": true,
-        "options": {
-          "systemMessage": "=You are an ISTQB certified test planning assistant. Your task is to analyze pull requests and create structured test cases.\n\n## WORKFLOW\n\n1. **Quick Assessment** - First, determine if testing is needed:\n   - Set needs-testing to FALSE if changes are only: README, documentation, comments, configuration files, or test files\n   - Set needs-testing to TRUE for functional code changes\n\n2. **For Functional Changes** - If needs-testing is TRUE:\n   - Retrieve the PR diff using the HTTP Request tool\n   - If an issue number is mentioned in the PR title, retrieve it using the Get Issue tool for acceptance criteria\n   - Create 2-5 focused test cases based on the actual code changes\n\n## TEST CASE GUIDELINES\n\n- Focus ONLY on functionality directly modified in the PR\n- Each test case needs a clear title and detailed description\n- Descriptions should specify: what to test, where to find it, and what to validate\n- Keep test cases actionable for browser automation\n- Limit to 2-5 test cases maximum to avoid timeouts\n\n3. **Output Requirements** -",
-          "maxIterations": 10
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.agent",
-      "typeVersion": 2,
-      "position": [
-        2976,
-        2128
-      ],
-      "id": "ff9da3d3-cd0d-49d9-b155-56d2c247565f",
-      "name": "Testplan Agent",
-      "retryOnFail": false,
-      "waitBetweenTries": 5000,
-      "alwaysOutputData": false,
-      "executeOnce": false
-    },
-    {
-      "parameters": {
-        "promptType": "define",
         "text": "={{ JSON.stringify($json.output) }}",
         "hasOutputParser": true,
         "options": {
           "systemMessage": "=You are a helpful manual tester that needs to make sure the pull request can be merged by performing a set of functional tests.\n\nYou mission is:\n\n- You will first retrieve the preview environment on Vercel via the comments on  {{ $json.output[\"pull-request-comments-url\"] }} its part of the [Visit preview] and ends with `.vercel.app`\n\n- You can use tools from Airtop to validate all testcases. Below is a set of how to best use these tools.\n\n- Do not test any other test not mentioned within the testcases.\n\n- Make sure to output if the tests were a success and provide a detailed description of the run. What was executed and what was validated upon.\n\nHow to use Airtop tools:\n\n## Start the browser\nYou should always start by using the `Start browser` tool to get the `sessionId` and `windowId` required by other tools.\n\n## Use the `Query` tool\nYou don't have access to the browser screen but you can call the `Query` tool to get knowladge and hints of the current browser window. This tool accepts queries in natural language and can output information in plain text, markdown or JSON.\n\n## Use the `Click` tool\nUse the `Click` tool to click on an element on the web page. Describe the element in details in the \"Element Description\" field, Be specific and refer to elements that are on the page. \n\n## Use the `Type` tool\nUse the `Type` tool to type in text boxes. Describe the text box in \"Element Description\" field and the text to type in the \"Text\" field. The 'Type' tool is clicking Enter after typing the text so don't send [ENTER] commandes.\n\n### Examples for how to use the `Query` tool\n- Ask something about the current page:\n  \"Is the user logged in? Answer with Yes or No\"\n- Retrieve information:\n  \"Extract all the posts in the page, include the title and copy, output in JSON format\"\n- Get hints on the UI:\n  \"Is there a link to the contact form? If yes, describe the element in detail\"\n\n## Important\n- Start by calling `Start browser` to begin using the browser and provide the initial URL\n- Call `End session` with the `sessionId` once you have finished using the browser",
-          "maxIterations": 50
+          "maxIterations": 35
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 2,
       "position": [
-        4336,
-        2128
+        1840,
+        200
       ],
-      "id": "9f9fecd7-0f61-4efe-9ef1-c7b54d4fa728",
-      "name": "Browser Agent1",
-      "retryOnFail": true,
-      "waitBetweenTries": 5000
+      "id": "1c5f1850-5bd8-4941-aad2-1f53c5ff7f3b",
+      "name": "Browser Agent"
     },
     {
       "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are a helpful ISTQB certified assistant that creates a set of test cases that need to be tested in a later stage by a different AI agent.\n\nYou can make HTTP requests to retrieve the file diffs of the pull request via {{ $json.user_message.diff_url }}\n\nYou can gather both the issue number of the pull request: {{ $json.user_message.number }} And if a issue is mentioned within the commit message ({{ $json.user_message.title }}) or comment also retrieve the issue number which is related to the PR.\n\nYour mission:\n\n- Review the proposed code changes file by file and by significant modification.\n\n- Come up with a list of test cases based on the functionalities of the pull request and the the related issue within GitHub.\n\n- Use the GitHub issue tool to get the contents of the SCRUM issue. Which contains acceptance criteria to base the test cases on.\n\n- Only output the test cases to perform. A different AI agent will use the browser to perform these testcases at a later stage. Make sure the output is detailed enough so the next agent knows what to do and where to assess / validate on.\n\n- Don't make up any testcases for functionality which is not directly touched, or not mentioned as acceptance criteria.\n\n- If the code changes are not functional. e.g. but only a change in readme, external files, comments (also ignore comments in js or html files etc.), tests etc. Output that `needs-testing` is false.\n\n- If `needs-testing` is true it should always contain some test cases."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        540,
+        200
+      ],
+      "id": "377f4cee-ecc5-4208-abf6-72fe1554abc6",
+      "name": "Testplan Agent"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
         "owner": {
           "__rl": true,
           "value": "grvermeulen",
@@ -60,22 +54,20 @@
         "events": [
           "pull_request"
         ],
-        "options": {
-          "insecureSSL": false
-        }
+        "options": {}
       },
       "type": "n8n-nodes-base.githubTrigger",
       "typeVersion": 1,
       "position": [
-        2400,
-        2320
+        0,
+        400
       ],
-      "id": "534ec630-18c8-48d8-bbd7-9dedd757678f",
-      "name": "Github Trigger1",
+      "id": "639831ba-e366-4464-80bc-af93e113efb0",
+      "name": "Github Trigger",
       "webhookId": "f02079a7-2d87-4c21-b85d-3af539244853",
       "credentials": {
-        "githubApi": {
-          "id": "IxFXWuCsFvZL6zzM",
+        "githubOAuth2Api": {
+          "id": "6F53O8Zf3hJZijLr",
           "name": "GitHub account"
         }
       }
@@ -91,17 +83,28 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.2,
       "position": [
-        2976,
-        2352
+        560,
+        420
       ],
-      "id": "a377d95a-c44b-484f-b264-2462fb21fb85",
-      "name": "HTTP Request File Diffs1",
+      "id": "be98867f-9334-41d6-b7ce-492e616cbabc",
+      "name": "HTTP Request File Diffs",
       "credentials": {
         "githubApi": {
-          "id": "IxFXWuCsFvZL6zzM",
-          "name": "GitHub account"
+          "id": "VJEChOvTBu3ZTcFJ",
+          "name": "GitHub account 3"
         }
       }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -440,
+        100
+      ],
+      "id": "e85c1623-526c-4f15-8fbf-01edd5d2b0fd",
+      "name": "GitHub Trigger Mock"
     },
     {
       "parameters": {
@@ -110,11 +113,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2624,
-        2128
+        220,
+        200
       ],
-      "id": "1a18f364-bb0e-475d-a90a-72d209a2271f",
-      "name": "Prepare Testplan Agent Input1"
+      "id": "4d6a8b65-5e87-4d4a-a297-9bb830b4c360",
+      "name": "Prepare Testplan Agent Input"
     },
     {
       "parameters": {
@@ -136,16 +139,16 @@
       "type": "n8n-nodes-base.githubTool",
       "typeVersion": 1.1,
       "position": [
-        3104,
-        2352
+        680,
+        420
       ],
-      "id": "fd113d36-3312-4601-a043-696e092701de",
-      "name": "Get Issue1",
+      "id": "8650a6e1-2410-45e1-90af-90b18e905290",
+      "name": "Get Issue",
       "webhookId": "3301c2fc-e9a1-4bef-84de-f4bcaab27b10",
       "credentials": {
         "githubApi": {
-          "id": "IxFXWuCsFvZL6zzM",
-          "name": "GitHub account"
+          "id": "VJEChOvTBu3ZTcFJ",
+          "name": "GitHub account 3"
         }
       }
     },
@@ -177,11 +180,11 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        3440,
-        2128
+        1000,
+        200
       ],
-      "id": "59a8e5f6-4feb-4433-b827-cfd1f71fb86e",
-      "name": "Needs testing?1"
+      "id": "a462ceb3-5b65-40b3-831a-6e580091609e",
+      "name": "Needs testing?"
     },
     {
       "parameters": {
@@ -190,11 +193,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2400,
-        2128
+        0,
+        200
       ],
-      "id": "83ac8ae8-71c1-4f57-8029-10f1f3a1862b",
-      "name": "Non Functional PR Mock1"
+      "id": "019c7178-13fc-468f-9be8-5b24040f7856",
+      "name": "Non Functional PR Mock"
     },
     {
       "parameters": {
@@ -203,22 +206,22 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2400,
-        1936
+        0,
+        0
       ],
-      "id": "d115a293-f8fc-45f1-a2d3-04b7942de379",
-      "name": "Functional PR Mock1"
+      "id": "ae55d737-1c40-4397-8550-e3e9b67a92e0",
+      "name": "Functional PR Mock"
     },
     {
       "parameters": {},
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        3664,
-        2128
+        1220,
+        200
       ],
-      "id": "a8c8bac5-d7da-491d-9703-2d6c68ff4afe",
-      "name": "Wait For Preview Environment1",
+      "id": "3dbd1035-e22e-4c3d-ad1b-b49509c115ed",
+      "name": "Wait For Preview Environment",
       "webhookId": "e7581949-32a7-4f26-baf0-737a33a2341a"
     },
     {
@@ -249,11 +252,11 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        2176,
-        2032
+        -220,
+        100
       ],
-      "id": "90564341-17e4-4662-bef0-f210a5268c51",
-      "name": "If1"
+      "id": "b9bd3d3e-5128-4028-9824-ecfa6be8b4e4",
+      "name": "If"
     },
     {
       "parameters": {
@@ -264,15 +267,41 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.2,
       "position": [
-        4016,
-        2352
+        1560,
+        420
       ],
-      "id": "43981807-1f3e-4d94-8f0f-ad867b9b3371",
-      "name": "Get preview URL from comments1",
+      "id": "0b490478-c01f-41c6-98b9-81ed4c0302a1",
+      "name": "Get preview URL from comments",
       "retryOnFail": true
     },
     {
       "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1440,
+        420
+      ],
+      "id": "5ec8582c-ad3c-4c79-8063-7914c4e34397",
+      "name": "gpt-4.1",
+      "credentials": {
+        "openAiApi": {
+          "id": "nGlWYU7xnOxVR0Gl",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
         "resource": "review",
         "owner": {
           "__rl": true,
@@ -292,21 +321,22 @@
       "type": "n8n-nodes-base.github",
       "typeVersion": 1.1,
       "position": [
-        3664,
-        2320
+        1220,
+        400
       ],
-      "id": "881763a1-9687-4d5f-810c-da3465e589b9",
-      "name": "GitHub Comment1",
+      "id": "34344479-fd0b-4391-9af1-9dd1c3bed20a",
+      "name": "GitHub Comment",
       "webhookId": "37304c5a-87ff-4394-a0f6-3f7b130e46b4",
       "credentials": {
-        "githubApi": {
-          "id": "IxFXWuCsFvZL6zzM",
+        "githubOAuth2Api": {
+          "id": "6F53O8Zf3hJZijLr",
           "name": "GitHub account"
         }
       }
     },
     {
       "parameters": {
+        "authentication": "oAuth2",
         "resource": "review",
         "owner": {
           "__rl": true,
@@ -328,15 +358,15 @@
       "type": "n8n-nodes-base.github",
       "typeVersion": 1.1,
       "position": [
-        3664,
-        1936
+        1220,
+        0
       ],
-      "id": "3c9bf533-18d2-4989-aff7-043f8287b2b2",
-      "name": "GitHub Testcases Comment1",
+      "id": "8ace04f1-f5b1-4f15-a4b2-7d55cf3868af",
+      "name": "GitHub Testcases Comment",
       "webhookId": "99555e15-f7d4-4976-801e-d7e0d8a3dce3",
       "credentials": {
-        "githubApi": {
-          "id": "IxFXWuCsFvZL6zzM",
+        "githubOAuth2Api": {
+          "id": "6F53O8Zf3hJZijLr",
           "name": "GitHub account"
         }
       }
@@ -349,28 +379,42 @@
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.2,
       "position": [
-        4912,
-        2352
+        2400,
+        420
       ],
-      "id": "467290dd-09d6-41ea-b2cd-c6b3766c42e7",
-      "name": "Browser Agent Structured Output1"
+      "id": "725049cc-d1ef-4889-ab5d-e22df2c30bbb",
+      "name": "Browser Agent Structured Output"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"needs-testing\": {\n      \"type\": \"boolean\",\n      \"default\": false,\n      \"description\": \"Indicates if the pull request needs testing.\"\n    },\n    \"pull-request-number\": {\n      \"type\": \"number\",\n      \"description\": \"The number of the pull request.\"\n    },\n    \"pull-request-comments-url\": {\n      \"type\": \"string\",\n      \"description\": \"The URL of the pull request comments.\"\n    },\n    \"testcases\": {\n      \"type\": \"array\",\n      \"description\": \"A list of test case objects.\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"title\": {\n            \"type\": \"string\",\n            \"description\": \"The title of the test case.\"\n          },\n          \"description\": {\n            \"type\": \"string\",\n            \"description\": \"The description of the test case.\"\n          }\n        },\n        \"required\": [\n          \"title\",\n          \"description\"\n        ]\n      }\n    }\n  },\n  \"required\": [\n    \"needs-testing\",\n    \"pull-request-number\",\n    \"pull-request-comments-url\"\n  ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        800,
+        420
+      ],
+      "id": "48e5e2bc-a911-4da6-8872-a9b50e1d6bd9",
+      "name": "Testplan Agent Structured Output"
     },
     {
       "parameters": {
         "profileName": "={{ $json.profile_name }}",
         "additionalFields": {}
       },
-      "id": "f936fb41-eba8-4ae6-9ac5-8b32808d9e51",
-      "name": "Session1",
+      "id": "a090b5de-1a49-4126-a6d6-0e652388abcd",
+      "name": "Session",
       "type": "n8n-nodes-base.airtop",
       "position": [
-        2176,
-        2544
+        -220,
+        660
       ],
       "typeVersion": 1,
       "credentials": {
         "airtopApi": {
-          "id": "Q0YRp6gEMncsMaxm",
+          "id": "0MjTw2ZDZK1LJ2pp",
           "name": "Airtop account"
         }
       }
@@ -378,21 +422,21 @@
     {
       "parameters": {
         "resource": "window",
-        "url": "={{ $json.data.cdpUrl }}",
+        "url": "={{ $('When Executed by Another Workflow').item.json.url }}",
         "getLiveView": true,
         "additionalFields": {}
       },
-      "id": "34267ad1-42d9-4df7-bb29-600a3adefbb4",
-      "name": "Window1",
+      "id": "8e8aff2e-d640-4454-ad72-5c64b914c216",
+      "name": "Window",
       "type": "n8n-nodes-base.airtop",
       "position": [
-        2400,
-        2544
+        0,
+        660
       ],
       "typeVersion": 1,
       "credentials": {
         "airtopApi": {
-          "id": "Q0YRp6gEMncsMaxm",
+          "id": "0MjTw2ZDZK1LJ2pp",
           "name": "Airtop account"
         }
       }
@@ -405,13 +449,13 @@
               "id": "0a0680af-39bd-4bc7-b9cd-84c1766c79a1",
               "name": "sessionId",
               "type": "string",
-              "value": "={{ $('Session1').item.json.sessionId }}"
+              "value": "={{ $('Session').item.json.sessionId }}"
             },
             {
               "id": "13940ee8-c1d4-4718-a7b4-176c44c097b7",
               "name": "windowId",
               "type": "string",
-              "value": "={{ $('Window1').item.json.data.windowId }}"
+              "value": "={{ $('Window').item.json.data.windowId }}"
             },
             {
               "id": "a0f2005c-2cd2-4a8d-891b-a4759b72a124",
@@ -429,14 +473,36 @@
         },
         "options": {}
       },
-      "id": "6c1b02b7-78d4-4ef6-bb12-6d6952d309e8",
-      "name": "Return IDs1",
+      "id": "fb1abbec-e826-48c3-a674-66b0e36ca89f",
+      "name": "Return IDs",
       "type": "n8n-nodes-base.set",
       "position": [
-        2624,
-        2544
+        220,
+        660
       ],
       "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "url"
+            },
+            {
+              "name": "profile_name"
+            }
+          ]
+        }
+      },
+      "id": "df434655-af20-4731-ae2c-7a6aa6acdc46",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        -440,
+        660
+      ],
+      "typeVersion": 1.1
     },
     {
       "parameters": {
@@ -450,17 +516,17 @@
           "waitForNavigation": "domcontentloaded"
         }
       },
-      "id": "0a0efca5-c39e-453a-b86a-af25d3c19634",
-      "name": "Click1",
+      "id": "90394960-d96c-4d41-b2d1-2a3cc76cca07",
+      "name": "Click",
       "type": "n8n-nodes-base.airtopTool",
       "position": [
-        4144,
-        2352
+        1800,
+        420
       ],
       "typeVersion": 1,
       "credentials": {
         "airtopApi": {
-          "id": "Q0YRp6gEMncsMaxm",
+          "id": "0MjTw2ZDZK1LJ2pp",
           "name": "Airtop account"
         }
       }
@@ -476,17 +542,17 @@
         "prompt": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Prompt', `Ask anything and request to extract information from the current page, e.g. \"Is there any sign-up form? yes or no\"`, 'string') }}",
         "additionalFields": {}
       },
-      "id": "3e3ddb5d-324d-4797-b8a1-c7d61559a4dc",
-      "name": "Query1",
+      "id": "ed159222-05fb-4f91-a8a4-98c2b2ef00ba",
+      "name": "Query",
       "type": "n8n-nodes-base.airtopTool",
       "position": [
-        4272,
-        2352
+        1920,
+        420
       ],
       "typeVersion": 1,
       "credentials": {
         "airtopApi": {
-          "id": "Q0YRp6gEMncsMaxm",
+          "id": "0MjTw2ZDZK1LJ2pp",
           "name": "Airtop account"
         }
       }
@@ -502,17 +568,17 @@
         "url": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('URL', ``, 'string') }}",
         "additionalFields": {}
       },
-      "id": "9c282c7c-c299-4b4d-b4b8-f4dbd0a66b1b",
-      "name": "Load URL1",
+      "id": "ce4f245c-9ab5-4c19-8b76-84db768a28d8",
+      "name": "Load URL",
       "type": "n8n-nodes-base.airtopTool",
       "position": [
-        4400,
-        2352
+        2040,
+        420
       ],
       "typeVersion": 1,
       "credentials": {
         "airtopApi": {
-          "id": "Q0YRp6gEMncsMaxm",
+          "id": "0MjTw2ZDZK1LJ2pp",
           "name": "Airtop account"
         }
       }
@@ -522,17 +588,17 @@
         "operation": "terminate",
         "sessionId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Session_ID', \"The `sessionId` returned by the `Create session` tool\", 'string') }}"
       },
-      "id": "bfd81348-c8f9-41dc-8689-27b2a670d2ae",
-      "name": "End session1",
+      "id": "eb1a1a2e-ddb1-4d8e-b60c-14d16393dea4",
+      "name": "End session",
       "type": "n8n-nodes-base.airtopTool",
       "position": [
-        4528,
-        2352
+        2160,
+        420
       ],
       "typeVersion": 1,
       "credentials": {
         "airtopApi": {
-          "id": "Q0YRp6gEMncsMaxm",
+          "id": "0MjTw2ZDZK1LJ2pp",
           "name": "Airtop account"
         }
       }
@@ -543,26 +609,47 @@
         "description": "Start a new browser session and window",
         "workflowId": {
           "__rl": true,
-          "value": "11Y0g37i4gzLtPhM",
+          "value": "TgLcYrjGoLgP2PVo",
           "mode": "list",
-          "cachedResultUrl": "/workflow/11Y0g37i4gzLtPhM",
           "cachedResultName": "Agentic PR Test"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
-          "value": {},
+          "value": {
+            "url": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('url', ``, 'string') }}",
+            "profile_name": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('profile_name', ``, 'string') }}"
+          },
           "matchingColumns": [],
-          "schema": [],
+          "schema": [
+            {
+              "id": "url",
+              "displayName": "url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "profile_name",
+              "displayName": "profile_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            }
+          ],
           "attemptToConvertTypes": false,
           "convertFieldsToString": false
         }
       },
-      "id": "20de2790-8241-4a11-a3e0-d062bb1c9fe4",
-      "name": "Start browser1",
+      "id": "c4d89fe5-aab5-4bf0-9f18-4ec3b5606d80",
+      "name": "Start browser",
       "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
       "position": [
-        4656,
-        2352
+        2280,
+        420
       ],
       "typeVersion": 2.1
     },
@@ -579,23 +666,24 @@
         "elementDescription": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Element_Description', `Describe in detail the element to type into, e.g. The search box at the top of the page`, 'string') }}",
         "additionalFields": {}
       },
-      "id": "35025d70-50c6-4493-86b6-8d67b3e97bf4",
-      "name": "Type1",
+      "id": "8c99afda-e119-4253-9338-8f4c91cdac59",
+      "name": "Type",
       "type": "n8n-nodes-base.airtopTool",
       "position": [
-        4784,
-        2352
+        1680,
+        420
       ],
       "typeVersion": 1,
       "credentials": {
         "airtopApi": {
-          "id": "Q0YRp6gEMncsMaxm",
+          "id": "0MjTw2ZDZK1LJ2pp",
           "name": "Airtop account"
         }
       }
     },
     {
       "parameters": {
+        "authentication": "oAuth2",
         "resource": "review",
         "owner": {
           "__rl": true,
@@ -617,15 +705,15 @@
       "type": "n8n-nodes-base.github",
       "typeVersion": 1.1,
       "position": [
-        5120,
-        2128
+        2500,
+        200
       ],
-      "id": "f2b2d9a9-dc21-48ce-a39d-aab4df47944b",
-      "name": "GitHub Results Comment1",
+      "id": "7f15e15c-0742-4c36-b308-d319c8a2ed2f",
+      "name": "GitHub Results Comment",
       "webhookId": "99555e15-f7d4-4976-801e-d7e0d8a3dce3",
       "credentials": {
-        "githubApi": {
-          "id": "IxFXWuCsFvZL6zzM",
+        "githubOAuth2Api": {
+          "id": "6F53O8Zf3hJZijLr",
           "name": "GitHub account"
         }
       }
@@ -634,89 +722,26 @@
       "parameters": {
         "model": {
           "__rl": true,
-          "value": "gpt-5-mini",
+          "value": "gpt-4.1",
           "mode": "list",
-          "cachedResultName": "gpt-5-mini"
+          "cachedResultName": "gpt-4.1"
         },
         "options": {}
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
       "position": [
-        3888,
-        2352
+        440,
+        420
       ],
-      "id": "c4c95f7f-3d60-423a-b270-01c26a6af346",
-      "name": "gpt-5-mini",
+      "id": "cf60ef4e-ff83-4afb-ac67-3949e4a7e798",
+      "name": "gpt-4.",
       "credentials": {
         "openAiApi": {
-          "id": "liWRSvrUbIzkgoXj",
+          "id": "nGlWYU7xnOxVR0Gl",
           "name": "OpenAi account"
         }
       }
-    },
-    {
-      "parameters": {
-        "model": {
-          "__rl": true,
-          "value": "gpt-5-mini",
-          "mode": "list",
-          "cachedResultName": "gpt-5-mini"
-        },
-        "options": {
-          "maxRetries": 2
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
-      "typeVersion": 1.2,
-      "position": [
-        2848,
-        2352
-      ],
-      "id": "0c5b60ee-158c-4e84-bd95-8e1ee6e41d1e",
-      "name": "gpt-5-mini3",
-      "credentials": {
-        "openAiApi": {
-          "id": "liWRSvrUbIzkgoXj",
-          "name": "OpenAi account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "schemaType": "manual",
-        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"needs-testing\": {\n      \"type\": \"boolean\",\n      \"default\": false,\n      \"description\": \"Indicates if the pull request needs testing.\"\n    },\n    \"pull-request-number\": {\n      \"type\": \"number\",\n      \"description\": \"The number of the pull request.\"\n    },\n    \"pull-request-comments-url\": {\n      \"type\": \"string\",\n      \"description\": \"The URL of the pull request comments.\"\n    },\n    \"testcases\": {\n      \"type\": \"array\",\n      \"description\": \"A list of test case objects.\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"title\": {\n            \"type\": \"string\",\n            \"description\": \"The title of the test case.\"\n          },\n          \"description\": {\n            \"type\": \"string\",\n            \"description\": \"The description of the test case.\"\n          }\n        },\n        \"required\": [\n          \"title\",\n          \"description\"\n        ]\n      }\n    }\n  },\n  \"required\": [\n    \"needs-testing\",\n    \"pull-request-number\",\n    \"pull-request-comments-url\"\n  ]\n}"
-      },
-      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
-      "typeVersion": 1.2,
-      "position": [
-        3232,
-        2352
-      ],
-      "id": "7d2933e2-9705-401c-99ba-97d07506d5b3",
-      "name": "format_final_json_response"
-    },
-    {
-      "parameters": {
-        "workflowInputs": {
-          "values": [
-            {
-              "name": "url"
-            },
-            {
-              "name": "profile_name"
-            }
-          ]
-        }
-      },
-      "type": "n8n-nodes-base.executeWorkflowTrigger",
-      "typeVersion": 1.1,
-      "position": [
-        1952,
-        2560
-      ],
-      "id": "ba78f746-9a30-4b26-b93b-fa32d1f6f591",
-      "name": "When Executed by Another Workflow"
     }
   ],
   "pinData": {},
@@ -725,36 +750,25 @@
       "main": [
         [
           {
-            "node": "Needs testing?1",
+            "node": "Needs testing?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Browser Agent1": {
+    "Github Trigger": {
       "main": [
         [
           {
-            "node": "GitHub Results Comment1",
+            "node": "Prepare Testplan Agent Input",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Github Trigger1": {
-      "main": [
-        [
-          {
-            "node": "Prepare Testplan Agent Input1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "HTTP Request File Diffs1": {
+    "HTTP Request File Diffs": {
       "ai_tool": [
         [
           {
@@ -765,7 +779,18 @@
         ]
       ]
     },
-    "Prepare Testplan Agent Input1": {
+    "GitHub Trigger Mock": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Testplan Agent Input": {
       "main": [
         [
           {
@@ -776,7 +801,7 @@
         ]
       ]
     },
-    "Get Issue1": {
+    "Get Issue": {
       "ai_tool": [
         [
           {
@@ -787,218 +812,141 @@
         ]
       ]
     },
-    "Needs testing?1": {
+    "Non Functional PR Mock": {
       "main": [
         [
           {
-            "node": "GitHub Testcases Comment1",
+            "node": "Prepare Testplan Agent Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Functional PR Mock": {
+      "main": [
+        [
+          {
+            "node": "Prepare Testplan Agent Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs testing?": {
+      "main": [
+        [
+          {
+            "node": "GitHub Testcases Comment",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Wait For Preview Environment1",
+            "node": "Wait For Preview Environment",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "GitHub Comment1",
+            "node": "GitHub Comment",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Non Functional PR Mock1": {
+    "If": {
       "main": [
         [
           {
-            "node": "Prepare Testplan Agent Input1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Functional PR Mock1": {
-      "main": [
-        [
-          {
-            "node": "Prepare Testplan Agent Input1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Wait For Preview Environment1": {
-      "main": [
-        [
-          {
-            "node": "Browser Agent1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "If1": {
-      "main": [
-        [
-          {
-            "node": "Functional PR Mock1",
+            "node": "Functional PR Mock",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Non Functional PR Mock1",
+            "node": "Non Functional PR Mock",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get preview URL from comments1": {
+    "Get preview URL from comments": {
       "ai_tool": [
         [
           {
-            "node": "Browser Agent1",
+            "node": "Browser Agent",
             "type": "ai_tool",
             "index": 0
           }
         ]
       ]
     },
-    "Browser Agent Structured Output1": {
-      "ai_outputParser": [
-        [
-          {
-            "node": "Browser Agent1",
-            "type": "ai_outputParser",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Session1": {
+    "Wait For Preview Environment": {
       "main": [
         [
           {
-            "node": "Window1",
+            "node": "Browser Agent",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Window1": {
-      "main": [
-        [
-          {
-            "node": "Return IDs1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Click1": {
-      "ai_tool": [
-        [
-          {
-            "node": "Browser Agent1",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Query1": {
-      "ai_tool": [
-        [
-          {
-            "node": "Browser Agent1",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Load URL1": {
-      "ai_tool": [
-        [
-          {
-            "node": "Browser Agent1",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "End session1": {
-      "ai_tool": [
-        [
-          {
-            "node": "Browser Agent1",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Start browser1": {
-      "ai_tool": [
-        [
-          {
-            "node": "Browser Agent1",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Type1": {
-      "ai_tool": [
-        [
-          {
-            "node": "Browser Agent1",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "gpt-5-mini": {
+    "gpt-4.1": {
       "ai_languageModel": [
         [
           {
-            "node": "Browser Agent1",
+            "node": "Browser Agent",
             "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "gpt-5-mini3": {
-      "ai_languageModel": [
+    "Browser Agent Structured Output": {
+      "ai_outputParser": [
         [
           {
-            "node": "Testplan Agent",
-            "type": "ai_languageModel",
+            "node": "Browser Agent",
+            "type": "ai_outputParser",
             "index": 0
           }
         ]
       ]
     },
-    "format_final_json_response": {
+    "Testplan Agent Structured Output": {
       "ai_outputParser": [
         [
           {
             "node": "Testplan Agent",
             "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window": {
+      "main": [
+        [
+          {
+            "node": "Return IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Session": {
+      "main": [
+        [
+          {
+            "node": "Window",
+            "type": "main",
             "index": 0
           }
         ]
@@ -1008,8 +956,96 @@
       "main": [
         [
           {
-            "node": "Session1",
+            "node": "Session",
             "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Click": {
+      "ai_tool": [
+        [
+          {
+            "node": "Browser Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query": {
+      "ai_tool": [
+        [
+          {
+            "node": "Browser Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load URL": {
+      "ai_tool": [
+        [
+          {
+            "node": "Browser Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "End session": {
+      "ai_tool": [
+        [
+          {
+            "node": "Browser Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start browser": {
+      "ai_tool": [
+        [
+          {
+            "node": "Browser Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Type": {
+      "ai_tool": [
+        [
+          {
+            "node": "Browser Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Browser Agent": {
+      "main": [
+        [
+          {
+            "node": "GitHub Results Comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-4.": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Testplan Agent",
+            "type": "ai_languageModel",
             "index": 0
           }
         ]
@@ -1020,11 +1056,11 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "396ec43a-4188-4876-9cc3-cf79490c0344",
+  "versionId": "bac1501b-7857-427b-9291-e4ad5a99bb82",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "3ba8bf433a38aa7cc8f196f06b11873c328f664bdb0769f2586163b4213b6068"
+    "instanceId": "a36736785ff6feaa149030b541a416b7b35cffd670f049fe714764d6d0fcdb69"
   },
-  "id": "11Y0g37i4gzLtPhM",
+  "id": "TgLcYrjGoLgP2PVo",
   "tags": []
 }
