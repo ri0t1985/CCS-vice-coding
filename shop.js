@@ -4,6 +4,15 @@ const PRODUCTS = {
   lemon: { name: "Lemon", emoji: "🍋" },
 };
 
+const PRODUCT_VISIBILITY_KEY = "productVisibility";
+const DEFAULT_PRODUCT_VISIBILITY = Object.keys(PRODUCTS).reduce(
+  (acc, productId) => {
+    acc[productId] = true;
+    return acc;
+  },
+  {}
+);
+
 const BUNDLES = {
   healthy_mix: {
     name: "Healthy Mix",
@@ -30,6 +39,62 @@ const BUNDLES = {
 function getBasket() {
   const basket = localStorage.getItem("basket");
   return basket ? JSON.parse(basket) : [];
+}
+
+function getProductVisibilityMap() {
+  try {
+    const stored = localStorage.getItem(PRODUCT_VISIBILITY_KEY);
+    const parsed = stored ? JSON.parse(stored) : {};
+    return { ...DEFAULT_PRODUCT_VISIBILITY, ...parsed };
+  } catch (error) {
+    console.warn("Unable to read product visibility. Falling back to defaults.", error);
+    return { ...DEFAULT_PRODUCT_VISIBILITY };
+  }
+}
+
+function saveProductVisibilityMap(map) {
+  try {
+    localStorage.setItem(PRODUCT_VISIBILITY_KEY, JSON.stringify(map));
+    window.dispatchEvent(
+      new CustomEvent("product-visibility-changed", { detail: map })
+    );
+  } catch (error) {
+    console.error("Unable to persist product visibility.", error);
+  }
+}
+
+function setProductEnabled(productId, enabled) {
+  const map = getProductVisibilityMap();
+  map[productId] = !!enabled;
+  saveProductVisibilityMap(map);
+  enforceProductVisibility();
+}
+
+function isProductEnabled(productId) {
+  const map = getProductVisibilityMap();
+  return map[productId] !== false;
+}
+
+function redirectIfProductDisabled(productId) {
+  if (!isProductEnabled(productId)) {
+    window.location.replace("404.html");
+  }
+}
+
+function enforceProductVisibility() {
+  const visibility = getProductVisibilityMap();
+  const elements = document.querySelectorAll("[data-product-id]");
+  elements.forEach((element) => {
+    const productId = element.getAttribute("data-product-id");
+    if (!productId) return;
+    if (visibility[productId] === false) {
+      element.classList.add("product-hidden");
+      element.setAttribute("aria-hidden", "true");
+    } else {
+      element.classList.remove("product-hidden");
+      element.removeAttribute("aria-hidden");
+    }
+  });
 }
 
 function addToBasket(product) {
@@ -112,6 +177,10 @@ if (document.readyState !== "loading") {
 // Patch basket functions to update indicator
 const origAddToBasket = window.addToBasket;
 window.addToBasket = function (product) {
+  if (typeof isProductEnabled === "function" && !isProductEnabled(product)) {
+    console.warn(`Attempted to add disabled product "${product}" to basket.`);
+    return;
+  }
   origAddToBasket(product);
   renderBasketIndicator();
 };
@@ -120,3 +189,16 @@ window.clearBasket = function () {
   origClearBasket();
   renderBasketIndicator();
 };
+
+if (document.readyState !== "loading") {
+  enforceProductVisibility();
+} else {
+  document.addEventListener("DOMContentLoaded", enforceProductVisibility);
+}
+
+window.addEventListener("product-visibility-changed", enforceProductVisibility);
+window.addEventListener("storage", (event) => {
+  if (event.key === PRODUCT_VISIBILITY_KEY) {
+    enforceProductVisibility();
+  }
+});

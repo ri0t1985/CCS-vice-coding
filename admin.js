@@ -67,6 +67,8 @@ function renderProductOverview() {
   const rows = Object.entries(catalog)
     .map(([id, product]) => {
       const summary = PRODUCT_SUMMARIES[id] || {};
+      const enabled =
+        typeof isProductEnabled === "function" ? isProductEnabled(id) : true;
       return `
         <tr>
           <td class="admin-emoji">${product.emoji || "🍇"}</td>
@@ -74,11 +76,36 @@ function renderProductOverview() {
           <td>${summary.sku || id.toUpperCase()}</td>
           <td>${summary.tagline || "No description"}</td>
           <td>${summary.status || "TBD"}</td>
+          <td>
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                data-visibility-toggle="${id}"
+                ${enabled ? "checked" : ""}
+                aria-label="Toggle ${product.name || id} visibility"
+              />
+              <span>${enabled ? "Enabled" : "Disabled"}</span>
+            </label>
+          </td>
         </tr>
       `;
     })
     .join("");
   productsBody.innerHTML = rows;
+  attachVisibilityHandlers();
+}
+
+function attachVisibilityHandlers() {
+  const toggles = document.querySelectorAll("[data-visibility-toggle]");
+  toggles.forEach((toggle) => {
+    toggle.addEventListener("change", (event) => {
+      const productId = event.target.dataset.visibilityToggle;
+      if (typeof setProductEnabled === "function") {
+        setProductEnabled(productId, event.target.checked);
+      }
+      renderProductOverview();
+    });
+  });
 }
 
 loginForm.addEventListener("submit", (event) => {

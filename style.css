@@ -240,6 +240,9 @@ input[type="text"]:focus {
   width: min(820px, 95vw);
   align-items: stretch;
 }
+.product-hidden {
+  display: none !important;
+}
 .admin-dashboard-header {
   width: 100%;
   display: flex;
@@ -305,6 +308,42 @@ input[type="text"]:focus {
 .secondary-btn:hover {
   background: #f5f5f5;
   transform: translateY(-1px);
+}
+.toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+}
+.toggle-switch input[type="checkbox"] {
+  appearance: none;
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background: #ddd;
+  position: relative;
+  transition: background 0.2s;
+  cursor: pointer;
+  border: 2px solid #bbb;
+}
+.toggle-switch input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  top: 1px;
+  left: 1px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+.toggle-switch input[type="checkbox"]:checked {
+  background: #4caf50;
+  border-color: #3a8c3f;
+}
+.toggle-switch input[type="checkbox"]:checked::after {
+  transform: translateX(20px);
 }
 .basket-indicator {
   position: absolute;
