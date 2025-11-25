@@ -1,0 +1,1030 @@
+{
+  "name": "Agentic PR Test",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are an ISTQB certified test planning assistant. Your task is to analyze pull requests and create structured test cases.\n\n## WORKFLOW\n\n1. **Quick Assessment** - First, determine if testing is needed:\n   - Set needs-testing to FALSE if changes are only: README, documentation, comments, configuration files, or test files\n   - Set needs-testing to TRUE for functional code changes\n\n2. **For Functional Changes** - If needs-testing is TRUE:\n   - Retrieve the PR diff using the HTTP Request tool\n   - If an issue number is mentioned in the PR title, retrieve it using the Get Issue tool for acceptance criteria\n   - Create 2-5 focused test cases based on the actual code changes\n\n## TEST CASE GUIDELINES\n\n- Focus ONLY on functionality directly modified in the PR\n- Each test case needs a clear title and detailed description\n- Descriptions should specify: what to test, where to find it, and what to validate\n- Keep test cases actionable for browser automation\n- Limit to 2-5 test cases maximum to avoid timeouts\n\n3. **Output Requirements** -",
+          "maxIterations": 10
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        2976,
+        2128
+      ],
+      "id": "ff9da3d3-cd0d-49d9-b155-56d2c247565f",
+      "name": "Testplan Agent",
+      "retryOnFail": false,
+      "waitBetweenTries": 5000,
+      "alwaysOutputData": false,
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify($json.output) }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are a helpful manual tester that needs to make sure the pull request can be merged by performing a set of functional tests.\n\nYou mission is:\n\n- You will first retrieve the preview environment on Vercel via the comments on  {{ $json.output[\"pull-request-comments-url\"] }} its part of the [Visit preview] and ends with `.vercel.app`\n\n- You can use tools from Airtop to validate all testcases. Below is a set of how to best use these tools.\n\n- Do not test any other test not mentioned within the testcases.\n\n- Make sure to output if the tests were a success and provide a detailed description of the run. What was executed and what was validated upon.\n\nHow to use Airtop tools:\n\n## Start the browser\nYou should always start by using the `Start browser` tool to get the `sessionId` and `windowId` required by other tools.\n\n## Use the `Query` tool\nYou don't have access to the browser screen but you can call the `Query` tool to get knowladge and hints of the current browser window. This tool accepts queries in natural language and can output information in plain text, markdown or JSON.\n\n## Use the `Click` tool\nUse the `Click` tool to click on an element on the web page. Describe the element in details in the \"Element Description\" field, Be specific and refer to elements that are on the page. \n\n## Use the `Type` tool\nUse the `Type` tool to type in text boxes. Describe the text box in \"Element Description\" field and the text to type in the \"Text\" field. The 'Type' tool is clicking Enter after typing the text so don't send [ENTER] commandes.\n\n### Examples for how to use the `Query` tool\n- Ask something about the current page:\n  \"Is the user logged in? Answer with Yes or No\"\n- Retrieve information:\n  \"Extract all the posts in the page, include the title and copy, output in JSON format\"\n- Get hints on the UI:\n  \"Is there a link to the contact form? If yes, describe the element in detail\"\n\n## Important\n- Start by calling `Start browser` to begin using the browser and provide the initial URL\n- Call `End session` with the `sessionId` once you have finished using the browser",
+          "maxIterations": 50
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        4336,
+        2128
+      ],
+      "id": "9f9fecd7-0f61-4efe-9ef1-c7b54d4fa728",
+      "name": "Browser Agent1",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "owner": {
+          "__rl": true,
+          "value": "grvermeulen",
+          "mode": "name"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "CCS-demo",
+          "mode": "name"
+        },
+        "events": [
+          "pull_request"
+        ],
+        "options": {
+          "insecureSSL": false
+        }
+      },
+      "type": "n8n-nodes-base.githubTrigger",
+      "typeVersion": 1,
+      "position": [
+        2400,
+        2320
+      ],
+      "id": "534ec630-18c8-48d8-bbd7-9dedd757678f",
+      "name": "Github Trigger1",
+      "webhookId": "f02079a7-2d87-4c21-b85d-3af539244853",
+      "credentials": {
+        "githubApi": {
+          "id": "IxFXWuCsFvZL6zzM",
+          "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Makes a HTTP request and returns the contents",
+        "url": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('URL', ``, 'string') }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "githubApi",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        2976,
+        2352
+      ],
+      "id": "a377d95a-c44b-484f-b264-2462fb21fb85",
+      "name": "HTTP Request File Diffs1",
+      "credentials": {
+        "githubApi": {
+          "id": "IxFXWuCsFvZL6zzM",
+          "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the input item\nconst item = $input.first().json;\n\n// Extract the pull_request object\nconst pull_request = item.body.pull_request;\n\nif (!pull_request) {\n  return [\n    {\n      json: {\n        error: 'pull_request not found'\n      }\n    }\n  ];\n}\n\n// Compose a full prompt string for the agent\nconst chatInput = `\nYou are a helpful ISTQB certified assistant that creates a set of test cases that need to be tested in a later stage by a different AI agent.\n\nUse the following Pull Request information:\n- PR Title: ${pull_request.title}\n- PR Number: ${pull_request.number}\n- PR Diff: Retrieve the diff from this API URL (Accept: application/vnd.github.v3.diff): ${pull_request.url}\n`;\n\n// Return in expected format\nreturn [\n  {\n    json: {\n      chatInput: chatInput.trim()\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2624,
+        2128
+      ],
+      "id": "1a18f364-bb0e-475d-a90a-72d209a2271f",
+      "name": "Prepare Testplan Agent Input1"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Get mentioned related Scrum issue from commit title",
+        "operation": "get",
+        "owner": {
+          "__rl": true,
+          "value": "grvermeulen",
+          "mode": "name"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "CCS-demo",
+          "mode": "name"
+        },
+        "issueNumber": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Issue_Number', ``, 'number') }}"
+      },
+      "type": "n8n-nodes-base.githubTool",
+      "typeVersion": 1.1,
+      "position": [
+        3104,
+        2352
+      ],
+      "id": "fd113d36-3312-4601-a043-696e092701de",
+      "name": "Get Issue1",
+      "webhookId": "3301c2fc-e9a1-4bef-84de-f4bcaab27b10",
+      "credentials": {
+        "githubApi": {
+          "id": "IxFXWuCsFvZL6zzM",
+          "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b62a9f96-dc75-4d62-acb8-b0e5e2699f48",
+              "leftValue": "={{ $json.output[\"needs-testing\"] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3440,
+        2128
+      ],
+      "id": "59a8e5f6-4feb-4433-b827-cfd1f71fb86e",
+      "name": "Needs testing?1"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    \"body\": {\n      \"action\": \"opened\",\n      \"number\": 3,\n      \"pull_request\": {\n        \"url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/pulls/3\",\n        \"id\": 2664386707,\n        \"node_id\": \"PR_kwDOPL5ai86ez1CT\",\n        \"html_url\": \"https://github.com/grvermeulen/CCS-Demo/pull/3\",\n        \"diff_url\": \"https://github.com/grvermeulen/CCS-Demo/pull/3.diff\",\n        \"patch_url\": \"https://github.com/grvermeulen/CCS-Demo/pull/3.patch\",\n        \"issue_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/issues/3\",\n        \"number\": 3,\n        \"state\": \"open\",\n        \"locked\": false,\n        \"title\": \"feat: add Personalized Fruit Subscription Service\",\n        \"user\": {\n          \"login\": \"grvermeulen\",\n          \"id\": 15326434,\n          \"node_id\": \"MDQ6VXNlcjE1MzI2NDM0\",\n          \"avatar_url\": \"https://avatars.githubusercontent.com/u/15326434?v=4\",\n          \"gravatar_id\": \"\",\n          \"url\": \"https://api.github.com/users/grvermeulen\",\n          \"html_url\": \"https://github.com/grvermeulen\",\n          \"followers_url\": \"https://api.github.com/users/grvermeulen/followers\",\n          \"following_url\": \"https://api.github.com/users/grvermeulen/following{/other_user}\",\n          \"gists_url\": \"https://api.github.com/users/grvermeulen/gists{/gist_id}\",\n          \"starred_url\": \"https://api.github.com/users/grvermeulen/starred{/owner}{/repo}\",\n          \"subscriptions_url\": \"https://api.github.com/users/grvermeulen/subscriptions\",\n          \"organizations_url\": \"https://api.github.com/users/grvermeulen/orgs\",\n          \"repos_url\": \"https://api.github.com/users/grvermeulen/repos\",\n          \"events_url\": \"https://api.github.com/users/grvermeulen/events{/privacy}\",\n          \"received_events_url\": \"https://api.github.com/users/grvermeulen/received_events\",\n          \"type\": \"User\",\n          \"user_view_type\": \"public\",\n          \"site_admin\": false\n        },\n        \"body\": \"This PR introduces a new subscription page where users can personalize their fruit box, select delivery frequency, and save their subscription. The navigation menu is updated to include a link to the subscription service.\",\n        \"created_at\": \"2025-07-14T14:02:39Z\",\n        \"updated_at\": \"2025-07-14T14:02:39Z\",\n        \"closed_at\": null,\n        \"merged_at\": null,\n        \"merge_commit_sha\": null,\n        \"assignee\": null,\n        \"assignees\": [],\n        \"requested_reviewers\": [],\n        \"requested_teams\": [],\n        \"labels\": [],\n        \"milestone\": null,\n        \"draft\": false,\n        \"commits_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/pulls/3/commits\",\n        \"review_comments_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/pulls/3/comments\",\n        \"review_comment_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/pulls/comments{/number}\",\n        \"comments_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/issues/3/comments\",\n        \"statuses_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/statuses/e09241a3c4d6096514ac4c3d38e8be98b542f68a\",\n        \"head\": {\n          \"label\": \"grvermeulen:feat/subscription-service\",\n          \"ref\": \"feat/subscription-service\",\n          \"sha\": \"e09241a3c4d6096514ac4c3d38e8be98b542f68a\",\n          \"user\": {\n            \"login\": \"grvermeulen\",\n            \"id\": 15326434,\n            \"node_id\": \"MDQ6VXNlcjE1MzI2NDM0\",\n            \"avatar_url\": \"https://avatars.githubusercontent.com/u/15326434?v=4\",\n            \"gravatar_id\": \"\",\n            \"url\": \"https://api.github.com/users/grvermeulen\",\n            \"html_url\": \"https://github.com/grvermeulen\",\n            \"followers_url\": \"https://api.github.com/users/grvermeulen/followers\",\n            \"following_url\": \"https://api.github.com/users/grvermeulen/following{/other_user}\",\n            \"gists_url\": \"https://api.github.com/users/grvermeulen/gists{/gist_id}\",\n            \"starred_url\": \"https://api.github.com/users/grvermeulen/starred{/owner}{/repo}\",\n            \"subscriptions_url\": \"https://api.github.com/users/grvermeulen/subscriptions\",\n            \"organizations_url\": \"https://api.github.com/users/grvermeulen/orgs\",\n            \"repos_url\": \"https://api.github.com/users/grvermeulen/repos\",\n            \"events_url\": \"https://api.github.com/users/grvermeulen/events{/privacy}\",\n            \"received_events_url\": \"https://api.github.com/users/grvermeulen/received_events\",\n            \"type\": \"User\",\n            \"user_view_type\": \"public\",\n            \"site_admin\": false\n          },\n          \"repo\": {\n            \"id\": 1019107979,\n            \"node_id\": \"R_kgDOPL5aiw\",\n            \"name\": \"CCS-Demo\",\n            \"full_name\": \"grvermeulen/CCS-Demo\",\n            \"private\": true,\n            \"owner\": {\n              \"login\": \"grvermeulen\",\n              \"id\": 15326434,\n              \"node_id\": \"MDQ6VXNlcjE1MzI2NDM0\",\n              \"avatar_url\": \"https://avatars.githubusercontent.com/u/15326434?v=4\",\n              \"gravatar_id\": \"\",\n              \"url\": \"https://api.github.com/users/grvermeulen\",\n              \"html_url\": \"https://github.com/grvermeulen\",\n              \"followers_url\": \"https://api.github.com/users/grvermeulen/followers\",\n              \"following_url\": \"https://api.github.com/users/grvermeulen/following{/other_user}\",\n              \"gists_url\": \"https://api.github.com/users/grvermeulen/gists{/gist_id}\",\n              \"starred_url\": \"https://api.github.com/users/grvermeulen/starred{/owner}{/repo}\",\n              \"subscriptions_url\": \"https://api.github.com/users/grvermeulen/subscriptions\",\n              \"organizations_url\": \"https://api.github.com/users/grvermeulen/orgs\",\n              \"repos_url\": \"https://api.github.com/users/grvermeulen/repos\",\n              \"events_url\": \"https://api.github.com/users/grvermeulen/events{/privacy}\",\n              \"received_events_url\": \"https://api.github.com/users/grvermeulen/received_events\",\n              \"type\": \"User\",\n              \"user_view_type\": \"public\",\n              \"site_admin\": false\n            },\n            \"html_url\": \"https://github.com/grvermeulen/CCS-Demo\",\n            \"description\": \"CCS-Demo\",\n            \"fork\": false,\n            \"url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo\",\n            \"forks_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/forks\",\n            \"keys_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/keys{/key_id}\",\n            \"collaborators_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/collaborators{/collaborator}\",\n            \"teams_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/teams\",\n            \"hooks_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/hooks\",\n            \"issue_events_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/issues/events{/number}\",\n            \"events_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/events\",\n            \"assignees_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/assignees{/user}\",\n            \"branches_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/branches{/branch}\",\n            \"tags_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/tags\",\n            \"blobs_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/git/blobs{/sha}\",\n            \"git_tags_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/git/tags{/sha}\",\n            \"git_refs_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/git/refs{/sha}\",\n            \"trees_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/git/trees{/sha}\",\n            \"statuses_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/statuses/{sha}\",\n            \"languages_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/languages\",\n            \"stargazers_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/stargazers\",\n            \"contributors_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/contributors\",\n            \"subscribers_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/subscribers\",\n            \"subscription_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/subscription\",\n            \"commits_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/commits{/sha}\",\n            \"git_commits_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/git/commits{/sha}\",\n            \"comments_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/comments{/number}\",\n            \"issue_comment_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/issues/comments{/number}\",\n            \"contents_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/contents/{+path}\",\n            \"compare_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/compare/{base}...{head}\",\n            \"merges_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/merges\",\n            \"archive_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/{archive_format}{/ref}\",\n            \"downloads_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/downloads\",\n            \"issues_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/issues{/number}\",\n            \"pulls_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/pulls{/number}\",\n            \"milestones_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/milestones{/number}\",\n            \"notifications_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/notifications{?since,all,participating}\",\n            \"labels_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/labels{/name}\",\n            \"releases_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/releases{/id}\",\n            \"deployments_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/deployments\",\n            \"created_at\": \"2025-07-13T18:50:04Z\",\n            \"updated_at\": \"2025-07-14T13:08:16Z\",\n            \"pushed_at\": \"2025-07-14T14:00:20Z\",\n            \"git_url\": \"git://github.com/grvermeulen/CCS-Demo.git\",\n            \"ssh_url\": \"git@github.com:grvermeulen/CCS-Demo.git\",\n            \"clone_url\": \"https://github.com/grvermeulen/CCS-Demo.git\",\n            \"svn_url\": \"https://github.com/grvermeulen/CCS-Demo\",\n            \"homepage\": null,\n            \"size\": 581,\n            \"stargazers_count\": 0,\n            \"watchers_count\": 0,\n            \"language\": \"HTML\",\n            \"has_issues\": true,\n            \"has_projects\": true,\n            \"has_downloads\": true,\n            \"has_wiki\": false,\n            \"has_pages\": false,\n            \"has_discussions\": false,\n            \"forks_count\": 0,\n            \"mirror_url\": null,\n            \"archived\": false,\n            \"disabled\": false,\n            \"open_issues_count\": 2,\n            \"license\": null,\n            \"allow_forking\": true,\n            \"is_template\": false,\n            \"web_commit_signoff_required\": false,\n            \"topics\": [],\n            \"visibility\": \"private\",\n            \"forks\": 0,\n            \"open_issues\": 2,\n            \"watchers\": 0,\n            \"default_branch\": \"main\",\n            \"allow_squash_merge\": true,\n            \"allow_merge_commit\": true,\n            \"allow_rebase_merge\": true,\n            \"allow_auto_merge\": false,\n            \"delete_branch_on_merge\": false,\n            \"allow_update_branch\": false,\n            \"use_squash_pr_title_as_default\": false,\n            \"squash_merge_commit_message\": \"COMMIT_MESSAGES\",\n            \"squash_merge_commit_title\": \"COMMIT_OR_PR_TITLE\",\n            \"merge_commit_message\": \"PR_TITLE\",\n            \"merge_commit_title\": \"MERGE_MESSAGE\"\n          }\n        },\n        \"base\": {\n          \"label\": \"grvermeulen:main\",\n          \"ref\": \"main\",\n          \"sha\": \"e74db62784faad281c18e3a812b883169bd4b98a\",\n          \"user\": {\n            \"login\": \"grvermeulen\",\n            \"id\": 15326434,\n            \"node_id\": \"MDQ6VXNlcjE1MzI2NDM0\",\n            \"avatar_url\": \"https://avatars.githubusercontent.com/u/15326434?v=4\",\n            \"gravatar_id\": \"\",\n            \"url\": \"https://api.github.com/users/grvermeulen\",\n            \"html_url\": \"https://github.com/grvermeulen\",\n            \"followers_url\": \"https://api.github.com/users/grvermeulen/followers\",\n            \"following_url\": \"https://api.github.com/users/grvermeulen/following{/other_user}\",\n            \"gists_url\": \"https://api.github.com/users/grvermeulen/gists{/gist_id}\",\n            \"starred_url\": \"https://api.github.com/users/grvermeulen/starred{/owner}{/repo}\",\n            \"subscriptions_url\": \"https://api.github.com/users/grvermeulen/subscriptions\",\n            \"organizations_url\": \"https://api.github.com/users/grvermeulen/orgs\",\n            \"repos_url\": \"https://api.github.com/users/grvermeulen/repos\",\n            \"events_url\": \"https://api.github.com/users/grvermeulen/events{/privacy}\",\n            \"received_events_url\": \"https://api.github.com/users/grvermeulen/received_events\",\n            \"type\": \"User\",\n            \"user_view_type\": \"public\",\n            \"site_admin\": false\n          },\n          \"repo\": {\n            \"id\": 1019107979,\n            \"node_id\": \"R_kgDOPL5aiw\",\n            \"name\": \"CCS-Demo\",\n            \"full_name\": \"grvermeulen/CCS-Demo\",\n            \"private\": true,\n            \"owner\": {\n              \"login\": \"grvermeulen\",\n              \"id\": 15326434,\n              \"node_id\": \"MDQ6VXNlcjE1MzI2NDM0\",\n              \"avatar_url\": \"https://avatars.githubusercontent.com/u/15326434?v=4\",\n              \"gravatar_id\": \"\",\n              \"url\": \"https://api.github.com/users/grvermeulen\",\n              \"html_url\": \"https://github.com/grvermeulen\",\n              \"followers_url\": \"https://api.github.com/users/grvermeulen/followers\",\n              \"following_url\": \"https://api.github.com/users/grvermeulen/following{/other_user}\",\n              \"gists_url\": \"https://api.github.com/users/grvermeulen/gists{/gist_id}\",\n              \"starred_url\": \"https://api.github.com/users/grvermeulen/starred{/owner}{/repo}\",\n              \"subscriptions_url\": \"https://api.github.com/users/grvermeulen/subscriptions\",\n              \"organizations_url\": \"https://api.github.com/users/grvermeulen/orgs\",\n              \"repos_url\": \"https://api.github.com/users/grvermeulen/repos\",\n              \"events_url\": \"https://api.github.com/users/grvermeulen/events{/privacy}\",\n              \"received_events_url\": \"https://api.github.com/users/grvermeulen/received_events\",\n              \"type\": \"User\",\n              \"user_view_type\": \"public\",\n              \"site_admin\": false\n            },\n            \"html_url\": \"https://github.com/grvermeulen/CCS-Demo\",\n            \"description\": \"CCS-Demo\",\n            \"fork\": false,\n            \"url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo\",\n            \"forks_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/forks\",\n            \"keys_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/keys{/key_id}\",\n            \"collaborators_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/collaborators{/collaborator}\",\n            \"teams_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/teams\",\n            \"hooks_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/hooks\",\n            \"issue_events_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/issues/events{/number}\",\n            \"events_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/events\",\n            \"assignees_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/assignees{/user}\",\n            \"branches_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/branches{/branch}\",\n            \"tags_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/tags\",\n            \"blobs_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/git/blobs{/sha}\",\n            \"git_tags_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/git/tags{/sha}\",\n            \"git_refs_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/git/refs{/sha}\",\n            \"trees_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/git/trees{/sha}\",\n            \"statuses_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/statuses/{sha}\",\n            \"languages_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/languages\",\n            \"stargazers_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/stargazers\",\n            \"contributors_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/contributors\",\n            \"subscribers_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/subscribers\",\n            \"subscription_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/subscription\",\n            \"commits_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/commits{/sha}\",\n            \"git_commits_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/git/commits{/sha}\",\n            \"comments_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/comments{/number}\",\n            \"issue_comment_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/issues/comments{/number}\",\n            \"contents_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/contents/{+path}\",\n            \"compare_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/compare/{base}...{head}\",\n            \"merges_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/merges\",\n            \"archive_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/{archive_format}{/ref}\",\n            \"downloads_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/downloads\",\n            \"issues_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/issues{/number}\",\n            \"pulls_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/pulls{/number}\",\n            \"milestones_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/milestones{/number}\",\n            \"notifications_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/notifications{?since,all,participating}\",\n            \"labels_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/labels{/name}\",\n            \"releases_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/releases{/id}\",\n            \"deployments_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/deployments\",\n            \"created_at\": \"2025-07-13T18:50:04Z\",\n            \"updated_at\": \"2025-07-14T13:08:16Z\",\n            \"pushed_at\": \"2025-07-14T14:00:20Z\",\n            \"git_url\": \"git://github.com/grvermeulen/CCS-Demo.git\",\n            \"ssh_url\": \"git@github.com:grvermeulen/CCS-Demo.git\",\n            \"clone_url\": \"https://github.com/grvermeulen/CCS-Demo.git\",\n            \"svn_url\": \"https://github.com/grvermeulen/CCS-Demo\",\n            \"homepage\": null,\n            \"size\": 581,\n            \"stargazers_count\": 0,\n            \"watchers_count\": 0,\n            \"language\": \"HTML\",\n            \"has_issues\": true,\n            \"has_projects\": true,\n            \"has_downloads\": true,\n            \"has_wiki\": false,\n            \"has_pages\": false,\n            \"has_discussions\": false,\n            \"forks_count\": 0,\n            \"mirror_url\": null,\n            \"archived\": false,\n            \"disabled\": false,\n            \"open_issues_count\": 2,\n            \"license\": null,\n            \"allow_forking\": true,\n            \"is_template\": false,\n            \"web_commit_signoff_required\": false,\n            \"topics\": [],\n            \"visibility\": \"private\",\n            \"forks\": 0,\n            \"open_issues\": 2,\n            \"watchers\": 0,\n            \"default_branch\": \"main\",\n            \"allow_squash_merge\": true,\n            \"allow_merge_commit\": true,\n            \"allow_rebase_merge\": true,\n            \"allow_auto_merge\": false,\n            \"delete_branch_on_merge\": false,\n            \"allow_update_branch\": false,\n            \"use_squash_pr_title_as_default\": false,\n            \"squash_merge_commit_message\": \"COMMIT_MESSAGES\",\n            \"squash_merge_commit_title\": \"COMMIT_OR_PR_TITLE\",\n            \"merge_commit_message\": \"PR_TITLE\",\n            \"merge_commit_title\": \"MERGE_MESSAGE\"\n          }\n        },\n        \"_links\": {\n          \"self\": {\n            \"href\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/pulls/3\"\n          },\n          \"html\": {\n            \"href\": \"https://github.com/grvermeulen/CCS-Demo/pull/3\"\n          },\n          \"issue\": {\n            \"href\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/issues/3\"\n          },\n          \"comments\": {\n            \"href\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/issues/3/comments\"\n          },\n          \"review_comments\": {\n            \"href\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/pulls/3/comments\"\n          },\n          \"review_comment\": {\n            \"href\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/pulls/comments{/number}\"\n          },\n          \"commits\": {\n            \"href\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/pulls/3/commits\"\n          },\n          \"statuses\": {\n            \"href\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/statuses/e09241a3c4d6096514ac4c3d38e8be98b542f68a\"\n          }\n        },\n        \"author_association\": \"OWNER\",\n        \"auto_merge\": null,\n        \"active_lock_reason\": null,\n        \"merged\": false,\n        \"mergeable\": null,\n        \"rebaseable\": null,\n        \"mergeable_state\": \"unknown\",\n        \"merged_by\": null,\n        \"comments\": 0,\n        \"review_comments\": 0,\n        \"maintainer_can_modify\": false,\n        \"commits\": 1,\n        \"additions\": 175,\n        \"deletions\": 0,\n        \"changed_files\": 9\n      },\n      \"repository\": {\n        \"id\": 1019107979,\n        \"node_id\": \"R_kgDOPL5aiw\",\n        \"name\": \"CCS-Demo\",\n        \"full_name\": \"grvermeulen/CCS-Demo\",\n        \"private\": true,\n        \"owner\": {\n          \"login\": \"grvermeulen\",\n          \"id\": 15326434,\n          \"node_id\": \"MDQ6VXNlcjE1MzI2NDM0\",\n          \"avatar_url\": \"https://avatars.githubusercontent.com/u/15326434?v=4\",\n          \"gravatar_id\": \"\",\n          \"url\": \"https://api.github.com/users/grvermeulen\",\n          \"html_url\": \"https://github.com/grvermeulen\",\n          \"followers_url\": \"https://api.github.com/users/grvermeulen/followers\",\n          \"following_url\": \"https://api.github.com/users/grvermeulen/following{/other_user}\",\n          \"gists_url\": \"https://api.github.com/users/grvermeulen/gists{/gist_id}\",\n          \"starred_url\": \"https://api.github.com/users/grvermeulen/starred{/owner}{/repo}\",\n          \"subscriptions_url\": \"https://api.github.com/users/grvermeulen/subscriptions\",\n          \"organizations_url\": \"https://api.github.com/users/grvermeulen/orgs\",\n          \"repos_url\": \"https://api.github.com/users/grvermeulen/repos\",\n          \"events_url\": \"https://api.github.com/users/grvermeulen/events{/privacy}\",\n          \"received_events_url\": \"https://api.github.com/users/grvermeulen/received_events\",\n          \"type\": \"User\",\n          \"user_view_type\": \"public\",\n          \"site_admin\": false\n        },\n        \"html_url\": \"https://github.com/grvermeulen/CCS-Demo\",\n        \"description\": \"CCS-Demo\",\n        \"fork\": false,\n        \"url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo\",\n        \"forks_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/forks\",\n        \"keys_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/keys{/key_id}\",\n        \"collaborators_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/collaborators{/collaborator}\",\n        \"teams_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/teams\",\n        \"hooks_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/hooks\",\n        \"issue_events_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/issues/events{/number}\",\n        \"events_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/events\",\n        \"assignees_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/assignees{/user}\",\n        \"branches_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/branches{/branch}\",\n        \"tags_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/tags\",\n        \"blobs_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/git/blobs{/sha}\",\n        \"git_tags_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/git/tags{/sha}\",\n        \"git_refs_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/git/refs{/sha}\",\n        \"trees_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/git/trees{/sha}\",\n        \"statuses_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/statuses/{sha}\",\n        \"languages_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/languages\",\n        \"stargazers_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/stargazers\",\n        \"contributors_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/contributors\",\n        \"subscribers_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/subscribers\",\n        \"subscription_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/subscription\",\n        \"commits_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/commits{/sha}\",\n        \"git_commits_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/git/commits{/sha}\",\n        \"comments_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/comments{/number}\",\n        \"issue_comment_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/issues/comments{/number}\",\n        \"contents_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/contents/{+path}\",\n        \"compare_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/compare/{base}...{head}\",\n        \"merges_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/merges\",\n        \"archive_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/{archive_format}{/ref}\",\n        \"downloads_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/downloads\",\n        \"issues_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/issues{/number}\",\n        \"pulls_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/pulls{/number}\",\n        \"milestones_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/milestones{/number}\",\n        \"notifications_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/notifications{?since,all,participating}\",\n        \"labels_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/labels{/name}\",\n        \"releases_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/releases{/id}\",\n        \"deployments_url\": \"https://api.github.com/repos/grvermeulen/CCS-Demo/deployments\",\n        \"created_at\": \"2025-07-13T18:50:04Z\",\n        \"updated_at\": \"2025-07-14T13:08:16Z\",\n        \"pushed_at\": \"2025-07-14T14:00:20Z\",\n        \"git_url\": \"git://github.com/grvermeulen/CCS-Demo.git\",\n        \"ssh_url\": \"git@github.com:grvermeulen/CCS-Demo.git\",\n        \"clone_url\": \"https://github.com/grvermeulen/CCS-Demo.git\",\n        \"svn_url\": \"https://github.com/grvermeulen/CCS-Demo\",\n        \"homepage\": null,\n        \"size\": 581,\n        \"stargazers_count\": 0,\n        \"watchers_count\": 0,\n        \"language\": \"HTML\",\n        \"has_issues\": true,\n        \"has_projects\": true,\n        \"has_downloads\": true,\n        \"has_wiki\": false,\n        \"has_pages\": false,\n        \"has_discussions\": false,\n        \"forks_count\": 0,\n        \"mirror_url\": null,\n        \"archived\": false,\n        \"disabled\": false,\n        \"open_issues_count\": 2,\n        \"license\": null,\n        \"allow_forking\": true,\n        \"is_template\": false,\n        \"web_commit_signoff_required\": false,\n        \"topics\": [],\n        \"visibility\": \"private\",\n        \"forks\": 0,\n        \"open_issues\": 2,\n        \"watchers\": 0,\n        \"default_branch\": \"main\"\n      },\n      \"sender\": {\n        \"login\": \"grvermeulen\",\n        \"id\": 15326434,\n        \"node_id\": \"MDQ6VXNlcjE1MzI2NDM0\",\n        \"avatar_url\": \"https://avatars.githubusercontent.com/u/15326434?v=4\",\n        \"gravatar_id\": \"\",\n        \"url\": \"https://api.github.com/users/grvermeulen\",\n        \"html_url\": \"https://github.com/grvermeulen\",\n        \"followers_url\": \"https://api.github.com/users/grvermeulen/followers\",\n        \"following_url\": \"https://api.github.com/users/grvermeulen/following{/other_user}\",\n        \"gists_url\": \"https://api.github.com/users/grvermeulen/gists{/gist_id}\",\n        \"starred_url\": \"https://api.github.com/users/grvermeulen/starred{/owner}{/repo}\",\n        \"subscriptions_url\": \"https://api.github.com/users/grvermeulen/subscriptions\",\n        \"organizations_url\": \"https://api.github.com/users/grvermeulen/orgs\",\n        \"repos_url\": \"https://api.github.com/users/grvermeulen/repos\",\n        \"events_url\": \"https://api.github.com/users/grvermeulen/events{/privacy}\",\n        \"received_events_url\": \"https://api.github.com/users/grvermeulen/received_events\",\n        \"type\": \"User\",\n        \"user_view_type\": \"public\",\n        \"site_admin\": false\n      }\n    },\n    \"headers\": {\n      \"host\": \"niceaitrial.app.n8n.cloud\",\n      \"user-agent\": \"GitHub-Hookshot/bde5943\",\n      \"content-length\": \"22459\",\n      \"accept\": \"*/*\",\n      \"accept-encoding\": \"gzip, br\",\n      \"cdn-loop\": \"cloudflare; loops=1; subreqs=1\",\n      \"cf-connecting-ip\": \"140.82.115.8\",\n      \"cf-ew-via\": \"15\",\n      \"cf-ipcountry\": \"US\",\n      \"cf-ray\": \"95f18f2b25515541-EWR\",\n      \"cf-visitor\": \"{\\\"scheme\\\":\\\"https\\\"}\",\n      \"cf-worker\": \"n8n.cloud\",\n      \"content-type\": \"application/json\",\n      \"x-forwarded-for\": \"140.82.115.8, 104.23.187.136\",\n      \"x-forwarded-host\": \"niceaitrial.app.n8n.cloud\",\n      \"x-forwarded-port\": \"443\",\n      \"x-forwarded-proto\": \"https\",\n      \"x-forwarded-server\": \"traefik-prod-users-gwc-82-6b58d578cf-fl6vd\",\n      \"x-github-delivery\": \"34b7ffb0-60bb-11f0-91c0-67249b191427\",\n      \"x-github-event\": \"pull_request\",\n      \"x-github-hook-id\": \"557956767\",\n      \"x-github-hook-installation-target-id\": \"1019107979\",\n      \"x-github-hook-installation-target-type\": \"repository\",\n      \"x-is-trusted\": \"yes\",\n      \"x-real-ip\": \"140.82.115.8\"\n    },\n    \"query\": {}\n  }\n]"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        2128
+      ],
+      "id": "83ac8ae8-71c1-4f57-8029-10f1f3a1862b",
+      "name": "Non Functional PR Mock1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.all();\n// You received an array of items in a \"runOnceForAllItems\" mode\n// Each item must be returned as { json: ... }, where ... is the data for that item\nreturn input.map(item => {\n  return { json: item };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        1936
+      ],
+      "id": "d115a293-f8fc-45f1-a2d3-04b7942de379",
+      "name": "Functional PR Mock1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3664,
+        2128
+      ],
+      "id": "a8c8bac5-d7da-491d-9703-2d6c68ff4afe",
+      "name": "Wait For Preview Environment1",
+      "webhookId": "e7581949-32a7-4f26-baf0-737a33a2341a"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "454e072a-eb00-47e6-a02e-855d6bfd54cd",
+              "leftValue": "={{ $json[\"functional-pr\"] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2176,
+        2032
+      ],
+      "id": "90564341-17e4-4662-bef0-f210a5268c51",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Makes an HTTP request and returns the response data.",
+        "url": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('URL', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        4016,
+        2352
+      ],
+      "id": "43981807-1f3e-4d94-8f0f-ad867b9b3371",
+      "name": "Get preview URL from comments1",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "resource": "review",
+        "owner": {
+          "__rl": true,
+          "value": "grvermeulen",
+          "mode": "name"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "CCS-demo",
+          "mode": "name"
+        },
+        "pullRequestNumber": "={{ $json.output[\"pull-request-number\"] }}",
+        "event": "comment",
+        "body": "No functional changes, no testing required.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        3664,
+        2320
+      ],
+      "id": "881763a1-9687-4d5f-810c-da3465e589b9",
+      "name": "GitHub Comment1",
+      "webhookId": "37304c5a-87ff-4394-a0f6-3f7b130e46b4",
+      "credentials": {
+        "githubApi": {
+          "id": "IxFXWuCsFvZL6zzM",
+          "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "review",
+        "owner": {
+          "__rl": true,
+          "value": "grvermeulen",
+          "mode": "name"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "CCS-Demo",
+          "mode": "list",
+          "cachedResultName": "CCS-Demo",
+          "cachedResultUrl": "https://github.com/grvermeulen/CCS-Demo"
+        },
+        "pullRequestNumber": "={{ $json.output[\"pull-request-number\"] }}",
+        "event": "comment",
+        "body": "=## Testcases\n\n{{\n  $json.output.testcases.map(\n    c => `**${c.title}**\\n${c.description}`\n  ).join('\\n\\n')\n}}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        3664,
+        1936
+      ],
+      "id": "3c9bf533-18d2-4989-aff7-043f8287b2b2",
+      "name": "GitHub Testcases Comment1",
+      "webhookId": "99555e15-f7d4-4976-801e-d7e0d8a3dce3",
+      "credentials": {
+        "githubApi": {
+          "id": "IxFXWuCsFvZL6zzM",
+          "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"preview-url\": {\n      \"type\": \"string\",\n      \"description\": \"URL for the preview environment where the tests were run.\"\n    },\n     \"pr-number\": {\n      \"type\": \"number\",\n      \"description\": \"Number of the pull request\"\n    },\n    \"success\": {\n      \"type\": \"boolean\",\n      \"description\": \"Overall status indicating if all test cases passed.\"\n    },\n    \"test-results\": {\n      \"type\": \"array\",\n      \"description\": \"An array of results for each individual test case.\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"title\": {\n            \"type\": \"string\",\n            \"description\": \"The title of the test case this result refers to.\"\n          },\n          \"passed\": {\n            \"type\": \"boolean\",\n            \"description\": \"The status of the test case. 'true' indicates a pass, 'false' indicates a fail.\"\n          },\n          \"description\": {\n            \"type\": \"string\",\n            \"description\": \"A detailed description of the test result, such as an error message.\"\n          }\n        },\n        \"required\": [\n          \"title\",\n          \"passed\",\n          \"description\"\n        ]\n      }\n    }\n  },\n  \"required\": [\n    \"preview-url\",\n    \"pr-number\",\n    \"success\",\n    \"test-results\"\n  ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        4912,
+        2352
+      ],
+      "id": "467290dd-09d6-41ea-b2cd-c6b3766c42e7",
+      "name": "Browser Agent Structured Output1"
+    },
+    {
+      "parameters": {
+        "profileName": "={{ $json.profile_name }}",
+        "additionalFields": {}
+      },
+      "id": "f936fb41-eba8-4ae6-9ac5-8b32808d9e51",
+      "name": "Session1",
+      "type": "n8n-nodes-base.airtop",
+      "position": [
+        2176,
+        2544
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "airtopApi": {
+          "id": "Q0YRp6gEMncsMaxm",
+          "name": "Airtop account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "window",
+        "url": "={{ $json.data.cdpUrl }}",
+        "getLiveView": true,
+        "additionalFields": {}
+      },
+      "id": "34267ad1-42d9-4df7-bb29-600a3adefbb4",
+      "name": "Window1",
+      "type": "n8n-nodes-base.airtop",
+      "position": [
+        2400,
+        2544
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "airtopApi": {
+          "id": "Q0YRp6gEMncsMaxm",
+          "name": "Airtop account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0a0680af-39bd-4bc7-b9cd-84c1766c79a1",
+              "name": "sessionId",
+              "type": "string",
+              "value": "={{ $('Session1').item.json.sessionId }}"
+            },
+            {
+              "id": "13940ee8-c1d4-4718-a7b4-176c44c097b7",
+              "name": "windowId",
+              "type": "string",
+              "value": "={{ $('Window1').item.json.data.windowId }}"
+            },
+            {
+              "id": "a0f2005c-2cd2-4a8d-891b-a4759b72a124",
+              "name": "output",
+              "type": "string",
+              "value": "Session and window created successfully"
+            },
+            {
+              "id": "a681af5f-57aa-4a8c-8264-3e87d5661bef",
+              "name": "liveUrl",
+              "value": "={{ $json.data.liveViewUrl }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6c1b02b7-78d4-4ef6-bb12-6d6952d309e8",
+      "name": "Return IDs1",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        2624,
+        2544
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Click on any element in the window",
+        "resource": "interaction",
+        "sessionId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Session_ID', \"The `sessionId` returned by the `Create session` tool\", 'string') }}",
+        "windowId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Window_ID', \"The `windowId` returned by the `Open window` tool\", 'string') }}",
+        "elementDescription": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Element_Description', `Describe in detail the element to click on, e.g. The menu item \"about us\" at the top of the page`, 'string') }}",
+        "additionalFields": {
+          "waitForNavigation": "domcontentloaded"
+        }
+      },
+      "id": "0a0efca5-c39e-453a-b86a-af25d3c19634",
+      "name": "Click1",
+      "type": "n8n-nodes-base.airtopTool",
+      "position": [
+        4144,
+        2352
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "airtopApi": {
+          "id": "Q0YRp6gEMncsMaxm",
+          "name": "Airtop account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Query the page, ask and extract information",
+        "resource": "extraction",
+        "operation": "query",
+        "sessionId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Session_ID', \"The `sessionId` returned by the `Create session` tool\", 'string') }}",
+        "windowId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Window_ID', \"The `windowId` returned by the `Open window` tool\", 'string') }}",
+        "prompt": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Prompt', `Ask anything and request to extract information from the current page, e.g. \"Is there any sign-up form? yes or no\"`, 'string') }}",
+        "additionalFields": {}
+      },
+      "id": "3e3ddb5d-324d-4797-b8a1-c7d61559a4dc",
+      "name": "Query1",
+      "type": "n8n-nodes-base.airtopTool",
+      "position": [
+        4272,
+        2352
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "airtopApi": {
+          "id": "Q0YRp6gEMncsMaxm",
+          "name": "Airtop account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Load a URL into the browser window",
+        "resource": "window",
+        "operation": "load",
+        "sessionId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Session_ID', \"The `sessionId` returned by the `Create session` tool\", 'string') }}",
+        "windowId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Window_ID', \"The `windowId` returned by the `Open window` tool\", 'string') }}",
+        "url": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('URL', ``, 'string') }}",
+        "additionalFields": {}
+      },
+      "id": "9c282c7c-c299-4b4d-b4b8-f4dbd0a66b1b",
+      "name": "Load URL1",
+      "type": "n8n-nodes-base.airtopTool",
+      "position": [
+        4400,
+        2352
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "airtopApi": {
+          "id": "Q0YRp6gEMncsMaxm",
+          "name": "Airtop account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "terminate",
+        "sessionId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Session_ID', \"The `sessionId` returned by the `Create session` tool\", 'string') }}"
+      },
+      "id": "bfd81348-c8f9-41dc-8689-27b2a670d2ae",
+      "name": "End session1",
+      "type": "n8n-nodes-base.airtopTool",
+      "position": [
+        4528,
+        2352
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "airtopApi": {
+          "id": "Q0YRp6gEMncsMaxm",
+          "name": "Airtop account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "Start_Browser",
+        "description": "Start a new browser session and window",
+        "workflowId": {
+          "__rl": true,
+          "value": "11Y0g37i4gzLtPhM",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/11Y0g37i4gzLtPhM",
+          "cachedResultName": "Agentic PR Test"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "id": "20de2790-8241-4a11-a3e0-d062bb1c9fe4",
+      "name": "Start browser1",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "position": [
+        4656,
+        2352
+      ],
+      "typeVersion": 2.1
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Type text into the page's element described",
+        "resource": "interaction",
+        "operation": "type",
+        "sessionId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Session_ID', \"The `sessionId` returned by the `Create session` tool\", 'string') }}",
+        "windowId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Window_ID', \"The `windowId` returned by the `Open window` tool\", 'string') }}",
+        "text": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Text', ``, 'string') }}",
+        "pressEnterKey": true,
+        "elementDescription": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Element_Description', `Describe in detail the element to type into, e.g. The search box at the top of the page`, 'string') }}",
+        "additionalFields": {}
+      },
+      "id": "35025d70-50c6-4493-86b6-8d67b3e97bf4",
+      "name": "Type1",
+      "type": "n8n-nodes-base.airtopTool",
+      "position": [
+        4784,
+        2352
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "airtopApi": {
+          "id": "Q0YRp6gEMncsMaxm",
+          "name": "Airtop account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "review",
+        "owner": {
+          "__rl": true,
+          "value": "grvermeulen",
+          "mode": "name"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "CCS-Demo",
+          "mode": "list",
+          "cachedResultName": "CCS-Demo",
+          "cachedResultUrl": "https://github.com/grvermeulen/CCS-Demo"
+        },
+        "pullRequestNumber": "={{ $json.output[\"pr-number\"] }}",
+        "event": "comment",
+        "body": "=## Testcases Report\n\n{{ $json.output[\"test-results\"].map(item => `**${item.title}**\\n${item.description}`).join('\\n\\n')}}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        5120,
+        2128
+      ],
+      "id": "f2b2d9a9-dc21-48ce-a39d-aab4df47944b",
+      "name": "GitHub Results Comment1",
+      "webhookId": "99555e15-f7d4-4976-801e-d7e0d8a3dce3",
+      "credentials": {
+        "githubApi": {
+          "id": "IxFXWuCsFvZL6zzM",
+          "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        3888,
+        2352
+      ],
+      "id": "c4c95f7f-3d60-423a-b270-01c26a6af346",
+      "name": "gpt-5-mini",
+      "credentials": {
+        "openAiApi": {
+          "id": "liWRSvrUbIzkgoXj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "options": {
+          "maxRetries": 2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2848,
+        2352
+      ],
+      "id": "0c5b60ee-158c-4e84-bd95-8e1ee6e41d1e",
+      "name": "gpt-5-mini3",
+      "credentials": {
+        "openAiApi": {
+          "id": "liWRSvrUbIzkgoXj",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"needs-testing\": {\n      \"type\": \"boolean\",\n      \"default\": false,\n      \"description\": \"Indicates if the pull request needs testing.\"\n    },\n    \"pull-request-number\": {\n      \"type\": \"number\",\n      \"description\": \"The number of the pull request.\"\n    },\n    \"pull-request-comments-url\": {\n      \"type\": \"string\",\n      \"description\": \"The URL of the pull request comments.\"\n    },\n    \"testcases\": {\n      \"type\": \"array\",\n      \"description\": \"A list of test case objects.\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"title\": {\n            \"type\": \"string\",\n            \"description\": \"The title of the test case.\"\n          },\n          \"description\": {\n            \"type\": \"string\",\n            \"description\": \"The description of the test case.\"\n          }\n        },\n        \"required\": [\n          \"title\",\n          \"description\"\n        ]\n      }\n    }\n  },\n  \"required\": [\n    \"needs-testing\",\n    \"pull-request-number\",\n    \"pull-request-comments-url\"\n  ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        3232,
+        2352
+      ],
+      "id": "7d2933e2-9705-401c-99ba-97d07506d5b3",
+      "name": "format_final_json_response"
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "url"
+            },
+            {
+              "name": "profile_name"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        1952,
+        2560
+      ],
+      "id": "ba78f746-9a30-4b26-b93b-fa32d1f6f591",
+      "name": "When Executed by Another Workflow"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Testplan Agent": {
+      "main": [
+        [
+          {
+            "node": "Needs testing?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Browser Agent1": {
+      "main": [
+        [
+          {
+            "node": "GitHub Results Comment1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Github Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Prepare Testplan Agent Input1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request File Diffs1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Testplan Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Testplan Agent Input1": {
+      "main": [
+        [
+          {
+            "node": "Testplan Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Issue1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Testplan Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs testing?1": {
+      "main": [
+        [
+          {
+            "node": "GitHub Testcases Comment1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait For Preview Environment1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "GitHub Comment1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Non Functional PR Mock1": {
+      "main": [
+        [
+          {
+            "node": "Prepare Testplan Agent Input1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Functional PR Mock1": {
+      "main": [
+        [
+          {
+            "node": "Prepare Testplan Agent Input1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait For Preview Environment1": {
+      "main": [
+        [
+          {
+            "node": "Browser Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Functional PR Mock1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Non Functional PR Mock1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get preview URL from comments1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Browser Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Browser Agent Structured Output1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Browser Agent1",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Session1": {
+      "main": [
+        [
+          {
+            "node": "Window1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window1": {
+      "main": [
+        [
+          {
+            "node": "Return IDs1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Click1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Browser Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Browser Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load URL1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Browser Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "End session1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Browser Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start browser1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Browser Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Type1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Browser Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-5-mini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Browser Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-5-mini3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Testplan Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_final_json_response": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Testplan Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Session1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "396ec43a-4188-4876-9cc3-cf79490c0344",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3ba8bf433a38aa7cc8f196f06b11873c328f664bdb0769f2586163b4213b6068"
+  },
+  "id": "11Y0g37i4gzLtPhM",
+  "tags": []
+}

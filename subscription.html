@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fruit Subscription - Fruit Shop</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header role="banner">
+    <div class="header-center">
+      <a href="index.html" class="logo" aria-label="Go to homepage">
+        <img src="img/fruit-shop-logo.webp" class="logo-img" alt="Fruit Shop Logo" />
+        <span class="products-text" style="text-align: center">View Products</span>
+      </a>
+      <nav role="navigation" aria-label="Main navigation">
+        <div class="nav-links">
+          <a href="index.html">Home</a>
+          <a href="bundles.html">Bundles</a>
+          <a href="personality-quiz.html" class="quiz-link">🌟 Fruit Quiz</a>
+          <a href="subscription.html" class="subscription-link">🍎 Subscription</a>
+        </div>
+        <a href="basket.html" class="basket-link" aria-label="View shopping basket" style="position: relative">
+          <img src="img/basket-icon.png" class="basket-img" alt="Shopping basket icon" />
+          <span class="basket-text">View shopping basket</span>
+        </a>
+      </nav>
+    </div>
+  </header>
+  <main id="main-content" role="main">
+    <div class="content-box" style="max-width: 500px; margin: 2rem auto;">
+      <h1>Personalized Fruit Subscription</h1>
+      <form id="subscriptionForm">
+        <label for="boxSize">Box Size:</label>
+        <select id="boxSize" name="boxSize" required>
+          <option value="">Select size</option>
+          <option value="small">Small (5 fruits)</option>
+          <option value="medium">Medium (10 fruits)</option>
+          <option value="large">Large (20 fruits)</option>
+        </select>
+        <br /><br />
+        <label>Choose your fruits:</label><br />
+        <input type="checkbox" name="fruits" value="Apple" /> Apple 🍏<br />
+        <input type="checkbox" name="fruits" value="Banana" /> Banana 🍌<br />
+        <input type="checkbox" name="fruits" value="Lemon" /> Lemon 🍋<br />
+        <br />
+        <label for="frequency">Delivery Frequency:</label>
+        <select id="frequency" name="frequency" required>
+          <option value="">Select frequency</option>
+          <option value="weekly">Weekly</option>
+          <option value="biweekly">Bi-Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
+        <br /><br />
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" required />
+        <br /><br />
+        <label for="address">Address:</label>
+        <input type="text" id="address" name="address" required />
+        <br /><br />
+        <button type="submit" class="cart-action-btn">Subscribe</button>
+      </form>
+      <div id="confirmationMsg" style="display:none; color:green; margin-top:1rem;"></div>
+    </div>
+  </main>
+  <script>
+    document.getElementById('subscriptionForm').onsubmit = function(e) {
+      e.preventDefault();
+      const boxSize = document.getElementById('boxSize').value;
+      const frequency = document.getElementById('frequency').value;
+      const name = document.getElementById('name').value;
+      const address = document.getElementById('address').value;
+      const fruits = Array.from(document.querySelectorAll('input[name="fruits"]:checked')).map(cb => cb.value);
+      if (!boxSize || !frequency || !name || !address || fruits.length === 0) {
+        alert('Please fill in all fields and select at least one fruit.');
+        return;
+      }
+      const subscription = { boxSize, frequency, name, address, fruits, date: new Date().toISOString() };
+      let subs = JSON.parse(localStorage.getItem('subscriptions') || '[]');
+      subs.push(subscription);
+      localStorage.setItem('subscriptions', JSON.stringify(subs));
+      document.getElementById('confirmationMsg').innerText = 'Thank you for subscribing! Your personalized fruit box will be delivered soon.';
+      document.getElementById('confirmationMsg').style.display = 'block';
+      document.getElementById('subscriptionForm').reset();
+    };
+  </script>
+</body>
+</html> 
