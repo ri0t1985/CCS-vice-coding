@@ -230,6 +230,82 @@ input[type="text"]:focus {
   flex-direction: column;
   align-items: center;
 }
+.admin-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 2rem 1rem 4rem;
+}
+.admin-card {
+  width: min(820px, 95vw);
+  align-items: stretch;
+}
+.admin-dashboard-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.admin-eyebrow {
+  text-transform: uppercase;
+  font-size: 0.95rem;
+  letter-spacing: 0.2rem;
+  margin: 0;
+  color: #888;
+}
+.admin-hint {
+  margin-top: 1rem;
+  font-size: 1rem;
+  color: #777;
+}
+.admin-code {
+  font-family: "Courier New", Courier, monospace;
+  background: #f3f3f3;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+}
+.admin-error {
+  color: #c62828;
+  min-height: 1.5rem;
+}
+.admin-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 1.5rem;
+}
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 1rem;
+}
+.admin-table th,
+.admin-table td {
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+.admin-table th {
+  background: #fafafa;
+  font-weight: 600;
+}
+.admin-emoji {
+  font-size: 1.8rem;
+}
+.secondary-btn {
+  background: #fff;
+  color: #222;
+  border: 2px solid #222;
+  border-radius: 30px;
+  padding: 0.6rem 1.4rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+.secondary-btn:hover {
+  background: #f5f5f5;
+  transform: translateY(-1px);
+}
 .basket-indicator {
   position: absolute;
   bottom: 4rem;
